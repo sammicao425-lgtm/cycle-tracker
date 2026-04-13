@@ -8,6 +8,7 @@ SCOPES = [
 ]
 
 SHEET_NAME = "Cycle Tracker Data"
+SHEET_ID = "1eRw-RtSpohg-ZF3A08SgW9V94X4Bup5cHroYBUR4GEA"
 
 # Worksheet names
 WS_DAILY_LOG = "daily_log"
@@ -36,19 +37,9 @@ def get_client() -> gspread.Client:
 
 
 def get_spreadsheet() -> gspread.Spreadsheet:
-    """Get or create the main spreadsheet."""
+    """Open the spreadsheet by ID (must be shared with the service account)."""
     client = get_client()
-    try:
-        return client.open(SHEET_NAME)
-    except gspread.SpreadsheetNotFound:
-        try:
-            spreadsheet = client.create(SHEET_NAME)
-            if "owner_email" in st.secrets:
-                spreadsheet.share(st.secrets["owner_email"], perm_type="user", role="writer")
-            return spreadsheet
-        except gspread.exceptions.APIError as e:
-            st.error(f"Google API error: {e.response.text}")
-            raise
+    return client.open_by_key(SHEET_ID)
 
 
 def get_worksheet(name: str, headers: list[str]) -> gspread.Worksheet:
