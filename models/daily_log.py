@@ -2,6 +2,7 @@ from datetime import date
 from typing import Optional
 
 import pandas as pd
+import streamlit as st
 
 from db.connection import get_worksheet, WS_DAILY_LOG
 from db.schema import DAILY_LOG_HEADERS
@@ -29,6 +30,18 @@ EXERCISE_COLUMNS = [e[0] for e in EXERCISES]
 
 def _get_ws():
     return get_worksheet(WS_DAILY_LOG, DAILY_LOG_HEADERS)
+
+
+@st.cache_data(ttl=120)
+def _fetch_all_records() -> list[dict]:
+    """Fetch all rows from the daily_log sheet once and cache."""
+    ws = _get_ws()
+    return ws.get_all_records()
+
+
+def _invalidate_cache():
+    """Clear cached data after a write."""
+    _fetch_all_records.clear()
 
 
 def save_log(log_date: date, data: dict) -> None:
@@ -63,44 +76,41 @@ def save_log(log_date: date, data: dict) -> None:
     else:
         ws.append_row(row)
 
+    _invalidate_cache()
+
 
 def get_log(log_date: date) -> Optional[dict]:
-    """Get a single day's log entry."""
-    ws = _get_ws()
+    """Get a single day's log entry from cached data."""
+    records = _fetch_all_records()
     date_str = log_date.isoformat()
-    try:
-        cell = ws.find(date_str, in_column=1)
-    except Exception:
-        return None
 
-    if cell is None:
-        return None
-
-    row_values = ws.row_values(cell.row)
-    result = {}
-    for i, col in enumerate(DAILY_LOG_HEADERS):
-        if i < len(row_values):
-            val = row_values[i]
-            if col == "log_date":
-                result[col] = val
-            elif col in ("sleep_hrv", "breath_duration_min", "exercise_duration_min"):
-                result[col] = float(val) if val else None
-            else:
-                result[col] = int(val) if val else 0
-        else:
-            result[col] = None
-    return result
+    for r in records:
+        if str(r.get("log_date", "")) == date_str:
+            result = {}
+            for col in DAILY_LOG_HEADERS:
+                val = r.get(col, "")
+                if col == "log_date":
+                    result[col] = val
+                elif col in ("sleep_hrv", "breath_duration_min", "exercise_duration_min"):
+                    result[col] = float(val) if val != "" and val is not None else None
+                else:
+                    try:
+                        result[col] = int(val) if val != "" and val is not None else 0
+                    except (ValueError, TypeError):
+                        result[col] = 0
+            return result
+    return None
 
 
 def get_logs_range(start_date: date, end_date: date) -> pd.DataFrame:
-    """Get all logs in a date range as a DataFrame."""
-    ws = _get_ws()
-    records = ws.get_all_records()
+    """Get all logs in a date range as a DataFrame from cached data."""
+    records = _fetch_all_records()
     if not records:
         return pd.DataFrame(columns=DAILY_LOG_HEADERS)
 
     df = pd.DataFrame(records)
-    df["log_date"] = pd.to_datetime(df["log_date"])
+    df["log_date"] = pd.to_datetime(df["log_date"], errors="coerce")
+    df = df.dropna(subset=["log_date"])
 
     mask = (df["log_date"] >= pd.Timestamp(start_date)) & (df["log_date"] <= pd.Timestamp(end_date))
     df = df[mask].sort_values("log_date").reset_index(drop=True)
@@ -117,14 +127,14 @@ def get_logs_range(start_date: date, end_date: date) -> pd.DataFrame:
 
 
 def get_all_logs() -> pd.DataFrame:
-    """Get all logs as a DataFrame."""
-    ws = _get_ws()
-    records = ws.get_all_records()
+    """Get all logs as a DataFrame from cached data."""
+    records = _fetch_all_records()
     if not records:
         return pd.DataFrame(columns=DAILY_LOG_HEADERS)
 
     df = pd.DataFrame(records)
-    df["log_date"] = pd.to_datetime(df["log_date"])
+    df["log_date"] = pd.to_datetime(df["log_date"], errors="coerce")
+    df = df.dropna(subset=["log_date"])
     df = df.sort_values("log_date").reset_index(drop=True)
 
     for col in ["sleep_hrv", "breath_duration_min", "exercise_duration_min"]:

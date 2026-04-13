@@ -8,12 +8,36 @@ from db.connection import get_worksheet, WS_PERIOD_START, WS_CYCLE_CONFIG
 from db.schema import PERIOD_START_HEADERS, CYCLE_CONFIG_HEADERS
 
 
-@st.cache_data(ttl=300)
-def _get_config(key: str) -> str:
+# --- Cached data fetchers (one API call each, cached for 2 min) ---
+
+
+@st.cache_data(ttl=120)
+def _fetch_config_records() -> list[dict]:
     ws = get_worksheet(WS_CYCLE_CONFIG, CYCLE_CONFIG_HEADERS)
-    records = ws.get_all_records()
+    return ws.get_all_records()
+
+
+@st.cache_data(ttl=120)
+def _fetch_period_records() -> list[dict]:
+    ws = get_worksheet(WS_PERIOD_START, PERIOD_START_HEADERS)
+    return ws.get_all_records()
+
+
+def _invalidate_period_cache():
+    _fetch_period_records.clear()
+
+
+def _invalidate_config_cache():
+    _fetch_config_records.clear()
+
+
+# --- Config ---
+
+
+def _get_config(key: str) -> str:
+    records = _fetch_config_records()
     for r in records:
-        if r["key"] == key:
+        if str(r.get("key", "")) == key:
             return str(r["value"])
     return None
 
@@ -28,6 +52,7 @@ def set_config(key: str, value: str) -> None:
         ws.update_cell(cell.row, 2, value)
     else:
         ws.append_row([key, value])
+    _invalidate_config_cache()
 
 
 def get_default_cycle_length() -> int:
@@ -41,10 +66,6 @@ def get_default_period_length() -> int:
 # --- Period start CRUD ---
 
 
-def _clear_period_cache():
-    get_period_starts.clear()
-
-
 def add_period_start(d: date) -> None:
     ws = get_worksheet(WS_PERIOD_START, PERIOD_START_HEADERS)
     date_str = d.isoformat()
@@ -54,7 +75,7 @@ def add_period_start(d: date) -> None:
         cell = None
     if cell is None:
         ws.append_row([date_str])
-    _clear_period_cache()
+    _invalidate_period_cache()
 
 
 def delete_period_start(d: date) -> None:
@@ -66,17 +87,15 @@ def delete_period_start(d: date) -> None:
         cell = None
     if cell is not None:
         ws.delete_rows(cell.row)
-    _clear_period_cache()
+    _invalidate_period_cache()
 
 
 def is_period_start(d: date) -> bool:
     return d in get_period_starts()
 
 
-@st.cache_data(ttl=60)
 def get_period_starts() -> list[date]:
-    ws = get_worksheet(WS_PERIOD_START, PERIOD_START_HEADERS)
-    records = ws.get_all_records()
+    records = _fetch_period_records()
     dates = []
     for r in records:
         try:
@@ -149,6 +168,7 @@ PHASE_ORDER = ["menstrual", "follicular", "ovulation", "luteal"]
 
 def get_phase_for_dates(start_date: date, end_date: date) -> list[tuple[date, str]]:
     """Return a list of (date, phase) tuples for a date range."""
+    # All data is fetched once from cache, then computed locally
     result = []
     d = start_date
     while d <= end_date:

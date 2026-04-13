@@ -16,7 +16,7 @@ WS_PERIOD_START = "period_start"
 WS_CYCLE_CONFIG = "cycle_config"
 
 
-@st.cache_resource(ttl=300)
+@st.cache_resource(ttl=600)
 def get_client() -> gspread.Client:
     """Return an authenticated gspread client using Streamlit secrets."""
     try:
@@ -25,7 +25,6 @@ def get_client() -> gspread.Client:
         st.error("Missing [gcp_service_account] in Streamlit secrets. Check your secrets config.")
         st.stop()
 
-    # Validate required fields are present
     required = ["type", "project_id", "private_key", "client_email", "token_uri"]
     missing = [k for k in required if k not in creds_dict]
     if missing:
@@ -36,18 +35,32 @@ def get_client() -> gspread.Client:
     return gspread.authorize(creds)
 
 
-def get_spreadsheet() -> gspread.Spreadsheet:
-    """Open the spreadsheet by ID (must be shared with the service account)."""
+@st.cache_resource(ttl=600)
+def _get_spreadsheet():
+    """Cached spreadsheet object."""
     client = get_client()
     return client.open_by_key(SHEET_ID)
 
 
+def get_spreadsheet() -> gspread.Spreadsheet:
+    return _get_spreadsheet()
+
+
+# Cache worksheet objects so we don't re-fetch them on every call
+_ws_cache = {}
+
+
 def get_worksheet(name: str, headers: list[str]) -> gspread.Worksheet:
-    """Get or create a worksheet with the given headers."""
+    """Get or create a worksheet (cached per session)."""
+    if name in _ws_cache:
+        return _ws_cache[name]
+
     spreadsheet = get_spreadsheet()
     try:
         ws = spreadsheet.worksheet(name)
     except gspread.WorksheetNotFound:
         ws = spreadsheet.add_worksheet(title=name, rows=1000, cols=len(headers))
         ws.append_row(headers)
+
+    _ws_cache[name] = ws
     return ws

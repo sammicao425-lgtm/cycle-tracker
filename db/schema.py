@@ -1,3 +1,5 @@
+import streamlit as st
+
 from db.connection import get_worksheet, get_spreadsheet, WS_DAILY_LOG, WS_PERIOD_START, WS_CYCLE_CONFIG
 
 # Column headers for each worksheet
@@ -20,8 +22,15 @@ _DEFAULTS = [
 ]
 
 
+_initialized = False
+
+
 def init_db():
-    """Ensure all worksheets exist with correct headers and defaults."""
+    """Ensure all worksheets exist with correct headers and defaults. Runs once per session."""
+    global _initialized
+    if _initialized:
+        return
+
     get_worksheet(WS_DAILY_LOG, DAILY_LOG_HEADERS)
     get_worksheet(WS_PERIOD_START, PERIOD_START_HEADERS)
 
@@ -31,3 +40,5 @@ def init_db():
     for key, value in _DEFAULTS:
         if key not in existing_keys:
             ws.append_row([key, value])
+
+    _initialized = True
