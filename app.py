@@ -10,7 +10,17 @@ st.set_page_config(
     page_icon="\U0001F319",
 )
 
-init_db()
+try:
+    init_db()
+except Exception as e:
+    st.error(f"**Startup error:** `{type(e).__name__}`")
+    # Show the actual API response if it's a gspread error
+    if hasattr(e, 'response'):
+        st.code(e.response.text, language="json")
+    else:
+        st.code(str(e))
+    st.info("Check your Google Cloud project: are both **Google Sheets API** and **Google Drive API** enabled for the correct project?")
+    st.stop()
 
 # --- Navigation ---
 pages = [
