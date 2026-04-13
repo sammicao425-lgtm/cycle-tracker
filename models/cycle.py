@@ -22,8 +22,11 @@ def set_config(key: str, value: str) -> None:
     ws = get_worksheet(WS_CYCLE_CONFIG, CYCLE_CONFIG_HEADERS)
     try:
         cell = ws.find(key, in_column=1)
-        ws.update_cell(cell.row, 2, value)
     except Exception:
+        cell = None
+    if cell is not None:
+        ws.update_cell(cell.row, 2, value)
+    else:
         ws.append_row([key, value])
 
 
@@ -46,8 +49,10 @@ def add_period_start(d: date) -> None:
     ws = get_worksheet(WS_PERIOD_START, PERIOD_START_HEADERS)
     date_str = d.isoformat()
     try:
-        ws.find(date_str, in_column=1)
+        cell = ws.find(date_str, in_column=1)
     except Exception:
+        cell = None
+    if cell is None:
         ws.append_row([date_str])
     _clear_period_cache()
 
@@ -57,9 +62,10 @@ def delete_period_start(d: date) -> None:
     date_str = d.isoformat()
     try:
         cell = ws.find(date_str, in_column=1)
-        ws.delete_rows(cell.row)
     except Exception:
-        pass
+        cell = None
+    if cell is not None:
+        ws.delete_rows(cell.row)
     _clear_period_cache()
 
 

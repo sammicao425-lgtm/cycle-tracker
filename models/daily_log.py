@@ -55,10 +55,12 @@ def save_log(log_date: date, data: dict) -> None:
     # Check if date already exists
     try:
         cell = ws.find(date_str, in_column=1)
-        # Update existing row
-        ws.update(f"A{cell.row}:{chr(64 + len(DAILY_LOG_HEADERS))}{cell.row}", [row])
     except Exception:
-        # Append new row
+        cell = None
+
+    if cell is not None:
+        ws.update(f"A{cell.row}:{chr(64 + len(DAILY_LOG_HEADERS))}{cell.row}", [row])
+    else:
         ws.append_row(row)
 
 
@@ -69,6 +71,9 @@ def get_log(log_date: date) -> Optional[dict]:
     try:
         cell = ws.find(date_str, in_column=1)
     except Exception:
+        return None
+
+    if cell is None:
         return None
 
     row_values = ws.row_values(cell.row)
