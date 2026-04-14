@@ -1,18 +1,30 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, timezone, timedelta as td
 
 import ephem
 
+# Melbourne, Australia
+MELBOURNE_LAT = "-37.8136"
+MELBOURNE_LON = "144.9631"
+MELBOURNE_UTC_OFFSET = 10  # AEST (not accounting for DST, close enough for moon dates)
+
+
+def _make_observer(d: date) -> ephem.Observer:
+    """Create an ephem Observer set to Melbourne for a given date."""
+    obs = ephem.Observer()
+    obs.lat = MELBOURNE_LAT
+    obs.lon = MELBOURNE_LON
+    obs.date = ephem.Date(d.strftime("%Y/%m/%d"))
+    return obs
+
 
 def get_moon_info(d: date) -> dict:
-    """Return moon phase info for a given date."""
-    obs = ephem.Observer()
-    obs.date = ephem.Date(d.strftime("%Y/%m/%d"))
+    """Return moon phase info for a given date in Melbourne."""
+    obs = _make_observer(d)
     moon = ephem.Moon(obs)
-    illumination = moon.phase / 100.0  # ephem returns 0-100
+    illumination = moon.phase / 100.0
 
     # Compare with previous day to determine waxing vs waning
-    obs_prev = ephem.Observer()
-    obs_prev.date = ephem.Date((d - timedelta(days=1)).strftime("%Y/%m/%d"))
+    obs_prev = _make_observer(d - timedelta(days=1))
     moon_prev = ephem.Moon(obs_prev)
     waxing = moon.phase > moon_prev.phase
 
@@ -39,7 +51,7 @@ def get_moon_info(d: date) -> dict:
 
 
 def get_key_moon_dates(start_date: date, end_date: date) -> list[dict]:
-    """Return all full and new moon dates in a range using ephem's precise functions."""
+    """Return all full and new moon dates in a range, adjusted to Melbourne time."""
     results = []
     d = ephem.Date(start_date.strftime("%Y/%m/%d"))
     end = ephem.Date(end_date.strftime("%Y/%m/%d"))
@@ -50,9 +62,11 @@ def get_key_moon_dates(start_date: date, end_date: date) -> list[dict]:
         fm = ephem.next_full_moon(cursor)
         if fm > end:
             break
-        fm_date = ephem.Date(fm).datetime().date()
+        # Convert UTC to Melbourne time (add offset hours)
+        fm_melbourne = ephem.Date(fm + MELBOURNE_UTC_OFFSET * ephem.hour)
+        fm_date = fm_melbourne.datetime().date()
         results.append({"date": fm_date, "type": "Full Moon"})
-        cursor = fm + 1  # advance past this one
+        cursor = fm + 1
 
     # Collect new moons
     cursor = d
@@ -60,7 +74,8 @@ def get_key_moon_dates(start_date: date, end_date: date) -> list[dict]:
         nm = ephem.next_new_moon(cursor)
         if nm > end:
             break
-        nm_date = ephem.Date(nm).datetime().date()
+        nm_melbourne = ephem.Date(nm + MELBOURNE_UTC_OFFSET * ephem.hour)
+        nm_date = nm_melbourne.datetime().date()
         results.append({"date": nm_date, "type": "New Moon"})
         cursor = nm + 1
 
