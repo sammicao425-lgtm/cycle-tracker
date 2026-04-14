@@ -1,7 +1,10 @@
 import streamlit as st
 from datetime import date
 
-from models.daily_log import save_log, get_log, SUPPLEMENTS, EXERCISES
+from models.daily_log import (
+    save_log, get_log, SUPPLEMENTS, EXERCISES,
+    TRIAL_SUPPLEMENTS, get_trial_streak,
+)
 from models.cycle import (
     get_cycle_day, get_cycle_phase, is_period_start,
     add_period_start, delete_period_start, PHASE_COLORS,
@@ -53,6 +56,7 @@ st.subheader("Supplements")
 
 standard = [s for s in SUPPLEMENTS if s[2] == "standard"]
 optional = [s for s in SUPPLEMENTS if s[2] == "optional"]
+trial = [s for s in SUPPLEMENTS if s[2] == "trial"]
 
 supp_values = {}
 
@@ -68,6 +72,26 @@ with col_opt:
     for col_name, display_name, _ in optional:
         default = bool(existing.get(col_name, 0)) if existing else False
         supp_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
+
+# Trial supplements with milestone tracking
+if trial:
+    st.caption("**Trial**")
+    for col_name, display_name, _ in trial:
+        default = bool(existing.get(col_name, 0)) if existing else False
+        supp_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
+
+        # Show streak progress
+        streak = get_trial_streak(col_name)
+        if streak["streak"] > 0 or supp_values[col_name]:
+            days = streak["streak"]
+            next_ms = streak["next_milestone"]
+            if next_ms:
+                st.progress(
+                    streak["progress_pct"] / 100,
+                    text=f"{days} day streak — next milestone: {next_ms} days",
+                )
+            else:
+                st.success(f"{days} day streak — all milestones reached!")
 
 st.divider()
 

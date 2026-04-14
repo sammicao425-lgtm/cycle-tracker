@@ -6,9 +6,9 @@ from db.connection import get_worksheet, get_spreadsheet, WS_DAILY_LOG, WS_PERIO
 DAILY_LOG_HEADERS = [
     "log_date",
     "supp_proomega", "supp_vitamin_d", "supp_vitamin_b",
-    "supp_magnesium", "supp_tru_niagen", "supp_creatine",
+    "supp_magnesium", "supp_tru_niagen", "supp_creatine", "supp_whey_protein",
     "sleep_hrv",
-    "exercise_zone2_run", "exercise_pt_weights", "exercise_duration_min",
+    "exercise_zone2_run", "exercise_pt_weights", "exercise_home_gym", "exercise_duration_min",
     "breath_practice", "breath_duration_min",
 ]
 

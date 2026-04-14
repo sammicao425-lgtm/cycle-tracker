@@ -13,8 +13,9 @@ SUPPLEMENTS = [
     ("supp_vitamin_d", "Vitamin D 2000IU", "standard"),
     ("supp_vitamin_b", "Vitamin B", "optional"),
     ("supp_magnesium", "Magnesium", "optional"),
-    ("supp_tru_niagen", "Tru Niagen", "optional"),
+    ("supp_tru_niagen", "Tru Niagen", "trial"),
     ("supp_creatine", "Creatine", "optional"),
+    ("supp_whey_protein", "Whey Protein", "optional"),
 ]
 
 SUPP_COLUMNS = [s[0] for s in SUPPLEMENTS]
@@ -23,6 +24,7 @@ SUPP_COLUMNS = [s[0] for s in SUPPLEMENTS]
 EXERCISES = [
     ("exercise_zone2_run", "Zone 2 Run"),
     ("exercise_pt_weights", "PT Weight Training"),
+    ("exercise_home_gym", "Home Gym"),
 ]
 
 EXERCISE_COLUMNS = [e[0] for e in EXERCISES]
@@ -102,6 +104,17 @@ def get_log(log_date: date) -> Optional[dict]:
     return None
 
 
+def _convert_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert column types in a log DataFrame."""
+    for col in ["sleep_hrv", "breath_duration_min", "exercise_duration_min"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    for col in SUPP_COLUMNS + EXERCISE_COLUMNS + ["breath_practice"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    return df
+
+
 def get_logs_range(start_date: date, end_date: date) -> pd.DataFrame:
     """Get all logs in a date range as a DataFrame from cached data."""
     records = _fetch_all_records()
@@ -115,15 +128,7 @@ def get_logs_range(start_date: date, end_date: date) -> pd.DataFrame:
     mask = (df["log_date"] >= pd.Timestamp(start_date)) & (df["log_date"] <= pd.Timestamp(end_date))
     df = df[mask].sort_values("log_date").reset_index(drop=True)
 
-    # Convert numeric columns
-    for col in ["sleep_hrv", "breath_duration_min", "exercise_duration_min"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-    for col in SUPP_COLUMNS + EXERCISE_COLUMNS + ["breath_practice"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-
-    return df
+    return _convert_df(df)
 
 
 def get_all_logs() -> pd.DataFrame:
@@ -137,11 +142,41 @@ def get_all_logs() -> pd.DataFrame:
     df = df.dropna(subset=["log_date"])
     df = df.sort_values("log_date").reset_index(drop=True)
 
-    for col in ["sleep_hrv", "breath_duration_min", "exercise_duration_min"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-    for col in SUPP_COLUMNS + EXERCISE_COLUMNS + ["breath_practice"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    return _convert_df(df)
 
-    return df
+
+# --- Trial supplement tracking ---
+
+TRIAL_SUPPLEMENTS = [s for s in SUPPLEMENTS if s[2] == "trial"]
+TRIAL_MILESTONES = [30, 60, 90]
+
+
+def get_trial_streak(supp_column: str) -> dict:
+    """Count consecutive days a trial supplement was taken, ending at today.
+
+    Returns: {"streak": int, "next_milestone": int or None, "progress_pct": float}
+    """
+    df = get_all_logs()
+    if df.empty or supp_column not in df.columns:
+        return {"streak": 0, "next_milestone": 30, "progress_pct": 0.0}
+
+    df = df.sort_values("log_date", ascending=False)
+    streak = 0
+    today = pd.Timestamp(date.today())
+
+    for _, row in df.iterrows():
+        expected = today - pd.Timedelta(days=streak)
+        if row["log_date"].date() == expected.date() and row.get(supp_column, 0) == 1:
+            streak += 1
+        else:
+            break
+
+    next_ms = None
+    for ms in TRIAL_MILESTONES:
+        if streak < ms:
+            next_ms = ms
+            break
+
+    progress = (streak / next_ms * 100) if next_ms else 100.0
+
+    return {"streak": streak, "next_milestone": next_ms, "progress_pct": progress}

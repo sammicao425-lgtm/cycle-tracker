@@ -3,8 +3,8 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS
-from models.cycle import get_cycle_phase
+from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS
+from models.cycle import get_cycle_phase, PHASE_COLORS
 from components.charts import build_timeline_chart
 
 st.header("Timeline")
@@ -28,7 +28,7 @@ end_date = date.today()
 if days:
     start_date = end_date - timedelta(days=days)
 else:
-    start_date = date(2020, 1, 1)  # effectively "all time"
+    start_date = date(2020, 1, 1)
 
 # Fetch data
 df = get_logs_range(start_date, end_date)
@@ -36,6 +36,32 @@ df = get_logs_range(start_date, end_date)
 # --- Build and display chart ---
 fig = build_timeline_chart(df, start_date, end_date)
 st.plotly_chart(fig, use_container_width=True)
+
+# --- Legend ---
+st.caption("**Cycle phases**")
+phase_cols = st.columns(4)
+for i, (phase, color) in enumerate(PHASE_COLORS.items()):
+    with phase_cols[i]:
+        st.markdown(
+            f'<span style="background:{color};padding:2px 8px;border-radius:4px;'
+            f'font-size:0.85em;color:#333">{phase.title()}</span>',
+            unsafe_allow_html=True,
+        )
+
+exercise_colors = {
+    "Zone 2 Run": "#42A5F5",
+    "PT Weight Training": "#AB47BC",
+    "Home Gym": "#FF7043",
+}
+st.caption("**Exercise** &nbsp; | &nbsp; **Breath**: green = yes, gray = rest")
+ex_cols = st.columns(len(exercise_colors))
+for i, (name, color) in enumerate(exercise_colors.items()):
+    with ex_cols[i]:
+        st.markdown(
+            f'<span style="background:{color};padding:2px 8px;border-radius:4px;'
+            f'font-size:0.85em;color:#fff">{name}</span>',
+            unsafe_allow_html=True,
+        )
 
 # --- Summary stats ---
 if not df.empty:
