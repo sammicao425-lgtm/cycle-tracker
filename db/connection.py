@@ -51,13 +51,30 @@ _ws_cache = {}
 
 
 def get_worksheet(name: str, headers: list[str]) -> gspread.Worksheet:
-    """Get or create a worksheet (cached per session)."""
+    """Get or create a worksheet (cached per session).
+
+    If the worksheet exists but has fewer columns than expected,
+    appends the missing columns to the header row and expands the sheet.
+    Existing data rows get empty values for the new columns automatically.
+    """
     if name in _ws_cache:
         return _ws_cache[name]
 
     spreadsheet = get_spreadsheet()
     try:
         ws = spreadsheet.worksheet(name)
+        # Check if headers need updating (migration)
+        existing_headers = ws.row_values(1)
+        new_cols = [h for h in headers if h not in existing_headers]
+        if new_cols:
+            # Append new columns to the right of existing headers
+            start_col = len(existing_headers) + 1
+            needed_total = start_col + len(new_cols) - 1
+            if needed_total > ws.col_count:
+                ws.resize(cols=needed_total)
+            # Write new column headers
+            for i, col_name in enumerate(new_cols):
+                ws.update_cell(1, start_col + i, col_name)
     except gspread.WorksheetNotFound:
         ws = spreadsheet.add_worksheet(title=name, rows=1000, cols=len(headers))
         ws.append_row(headers)
