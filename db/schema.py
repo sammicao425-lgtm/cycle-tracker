@@ -11,6 +11,9 @@ DAILY_LOG_HEADERS = [
     "sleep_hrv",
     "exercise_zone2_run", "exercise_pt_weights", "exercise_home_gym", "exercise_duration_min",
     "breath_practice", "breath_duration_min",
+    "discomfort", "discomfort_notes",
+    "energy_am", "energy_pm",
+    "symptom_headache", "symptom_tight_face", "symptom_tight_throat", "symptom_shallow_breath",
 ]
 
 PERIOD_START_HEADERS = ["start_date"]

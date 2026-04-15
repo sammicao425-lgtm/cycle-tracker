@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import date
 
 from models.daily_log import (
-    save_log, get_log, SUPPLEMENTS, EXERCISES,
+    save_log, get_log, SUPPLEMENTS, EXERCISES, DYSREG_SYMPTOMS,
 )
 from models.cycle import (
     get_cycle_day, get_cycle_phase, is_period_start,
@@ -127,6 +127,61 @@ if breath_on:
 
 st.divider()
 
+# --- Discomfort ---
+st.subheader("Discomfort")
+discomfort_default = bool(existing.get("discomfort", 0)) if existing else False
+discomfort_on = st.toggle("Had discomfort today", value=discomfort_default)
+
+discomfort_notes = ""
+if discomfort_on:
+    notes_default = str(existing.get("discomfort_notes", "")) if existing else ""
+    discomfort_notes = st.text_input(
+        "What happened?", value=notes_default,
+        placeholder="e.g. 拉肚子, stomach pain...",
+        key="discomfort_notes",
+    )
+
+st.divider()
+
+# --- Energy & Nervous System ---
+st.subheader("Energy & Nervous System")
+
+ENERGY_LABELS = ["—", "1 Very Low", "2 Low", "3 OK", "4 Good", "5 Great"]
+
+e_col1, e_col2 = st.columns(2)
+with e_col1:
+    am_default_idx = int(existing.get("energy_am", 0)) if existing else 0
+    energy_am = st.select_slider(
+        "AM Energy", options=ENERGY_LABELS,
+        value=ENERGY_LABELS[am_default_idx],
+        key="energy_am",
+    )
+with e_col2:
+    pm_default_idx = int(existing.get("energy_pm", 0)) if existing else 0
+    energy_pm = st.select_slider(
+        "PM Energy", options=ENERGY_LABELS,
+        value=ENERGY_LABELS[pm_default_idx],
+        key="energy_pm",
+    )
+
+energy_am_val = ENERGY_LABELS.index(energy_am)
+energy_pm_val = ENERGY_LABELS.index(energy_pm)
+
+st.caption("**Dysregulation symptoms**")
+symptom_values = {}
+s_col1, s_col2 = st.columns(2)
+half = len(DYSREG_SYMPTOMS) // 2
+with s_col1:
+    for col_name, display_name in DYSREG_SYMPTOMS[:half]:
+        default = bool(existing.get(col_name, 0)) if existing else False
+        symptom_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
+with s_col2:
+    for col_name, display_name in DYSREG_SYMPTOMS[half:]:
+        default = bool(existing.get(col_name, 0)) if existing else False
+        symptom_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
+
+st.divider()
+
 # --- Save ---
 if st.button("Save", type="primary", use_container_width=True):
     # Handle period start
@@ -144,6 +199,11 @@ if st.button("Save", type="primary", use_container_width=True):
         "exercise_duration_min": exercise_dur if any_exercise else None,
         "breath_practice": int(breath_on),
         "breath_duration_min": breath_dur if breath_on else None,
+        "discomfort": int(discomfort_on),
+        "discomfort_notes": discomfort_notes if discomfort_on and discomfort_notes else None,
+        "energy_am": energy_am_val if energy_am_val > 0 else None,
+        "energy_pm": energy_pm_val if energy_pm_val > 0 else None,
+        **symptom_values,
     }
 
     save_log(log_date, data)

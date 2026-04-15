@@ -29,6 +29,17 @@ EXERCISES = [
 
 EXERCISE_COLUMNS = [e[0] for e in EXERCISES]
 
+# Dysregulation symptom definitions: (db_column, display_name)
+DYSREG_SYMPTOMS = [
+    ("symptom_headache", "Headache"),
+    ("symptom_tight_face", "Tight Facial Muscles"),
+    ("symptom_tight_throat", "Tight Throat"),
+    ("symptom_shallow_breath", "Shallow Breathing"),
+]
+
+DYSREG_COLUMNS = [s[0] for s in DYSREG_SYMPTOMS]
+ENERGY_COLUMNS = ["energy_am", "energy_pm"]
+
 
 def _get_ws():
     return get_worksheet(WS_DAILY_LOG, DAILY_LOG_HEADERS)
@@ -93,7 +104,7 @@ def get_log(log_date: date) -> Optional[dict]:
                 val = r.get(col, "")
                 if col == "log_date":
                     result[col] = val
-                elif col == "supp_notes":
+                elif col in ("supp_notes", "discomfort_notes"):
                     result[col] = str(val) if val else ""
                 elif col in ("sleep_hrv", "breath_duration_min", "exercise_duration_min"):
                     result[col] = float(val) if val != "" and val is not None else None
@@ -111,7 +122,7 @@ def _convert_df(df: pd.DataFrame) -> pd.DataFrame:
     for col in ["sleep_hrv", "breath_duration_min", "exercise_duration_min"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-    for col in SUPP_COLUMNS + EXERCISE_COLUMNS + ["breath_practice"]:
+    for col in SUPP_COLUMNS + EXERCISE_COLUMNS + ["breath_practice", "discomfort"] + DYSREG_COLUMNS + ENERGY_COLUMNS:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
     return df

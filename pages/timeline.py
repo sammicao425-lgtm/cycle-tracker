@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS
+from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS, DYSREG_COLUMNS, ENERGY_COLUMNS
 from models.cycle import get_cycle_phase
 from components.charts import build_timeline_chart
 
@@ -43,7 +43,7 @@ exercise_colors = {
     "PT Weight Training": "#AB47BC",
     "Home Gym": "#FF7043",
 }
-st.caption("**Exercise** &nbsp; | &nbsp; **Breath**: green = yes, gray = rest")
+st.caption("**Exercise** &nbsp; | &nbsp; **Breath**: green = yes, gray = rest &nbsp; | &nbsp; **Symptoms**: red = present, gray = none")
 ex_cols = st.columns(len(exercise_colors))
 for i, (name, color) in enumerate(exercise_colors.items()):
     with ex_cols[i]:
@@ -82,6 +82,28 @@ if not df.empty:
     with s4:
         st.metric("Days Logged", len(df))
 
+    # Energy & symptom stats
+    e1, e2, e3 = st.columns(3)
+    with e1:
+        if "energy_am" in df.columns:
+            am_vals = df["energy_am"][df["energy_am"] > 0]
+            st.metric("Avg AM Energy", f"{am_vals.mean():.1f}/5" if not am_vals.empty else "—")
+        else:
+            st.metric("Avg AM Energy", "—")
+    with e2:
+        if "energy_pm" in df.columns:
+            pm_vals = df["energy_pm"][df["energy_pm"] > 0]
+            st.metric("Avg PM Energy", f"{pm_vals.mean():.1f}/5" if not pm_vals.empty else "—")
+        else:
+            st.metric("Avg PM Energy", "—")
+    with e3:
+        symptom_cols = [c for c in DYSREG_COLUMNS + ["discomfort"] if c in df.columns]
+        if symptom_cols and len(df) > 0:
+            symptom_days = (df[symptom_cols].sum(axis=1) > 0).mean() * 100
+            st.metric("Symptom Days", f"{symptom_days:.0f}%")
+        else:
+            st.metric("Symptom Days", "—")
+
     # --- Per-phase breakdown ---
     st.divider()
     st.subheader("By Cycle Phase")
@@ -102,10 +124,17 @@ if not df.empty:
             breath_rate = phase_df["breath_practice"].mean() * 100
             avail = [c for c in SUPP_COLUMNS if c in phase_df.columns]
             supp_rate = phase_df[avail].mean().mean() * 100 if avail else 0
+            am_vals = phase_df["energy_am"][phase_df["energy_am"] > 0] if "energy_am" in phase_df.columns else pd.Series(dtype=float)
+            pm_vals = phase_df["energy_pm"][phase_df["energy_pm"] > 0] if "energy_pm" in phase_df.columns else pd.Series(dtype=float)
+            symptom_cols = [c for c in DYSREG_COLUMNS + ["discomfort"] if c in phase_df.columns]
+            sym_pct = (phase_df[symptom_cols].sum(axis=1) > 0).mean() * 100 if symptom_cols else 0
             phase_stats.append({
                 "Phase": phase.title(),
                 "Days": len(phase_df),
                 "Avg HRV (ms)": f"{hrv_mean:.0f}" if pd.notna(hrv_mean) else "—",
+                "AM Energy": f"{am_vals.mean():.1f}" if not am_vals.empty else "—",
+                "PM Energy": f"{pm_vals.mean():.1f}" if not pm_vals.empty else "—",
+                "Symptom %": f"{sym_pct:.0f}%",
                 "Breath %": f"{breath_rate:.0f}%",
                 "Suppl %": f"{supp_rate:.0f}%",
             })

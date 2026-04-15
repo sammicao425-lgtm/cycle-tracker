@@ -5,7 +5,7 @@ import calendar
 import pandas as pd
 import plotly.graph_objects as go
 
-from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS
+from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS, DYSREG_SYMPTOMS, DYSREG_COLUMNS, ENERGY_COLUMNS
 from models.cycle import get_cycle_phase, PHASE_COLORS
 from models.moon import get_key_moon_dates
 
@@ -98,6 +98,18 @@ for week in weeks:
                 parts.append(f"Breath: {dur:.0f} min" if dur else "Breath: yes")
             taken = sum(1 for c in SUPP_COLUMNS if row.get(c))
             parts.append(f"Supplements: {taken}/{len(SUPP_COLUMNS)}")
+            # Energy
+            e_am = row.get("energy_am", 0)
+            e_pm = row.get("energy_pm", 0)
+            if e_am or e_pm:
+                parts.append(f"Energy: AM {e_am}/5, PM {e_pm}/5")
+            # Discomfort & symptoms
+            if row.get("discomfort"):
+                notes = row.get("discomfort_notes", "")
+                parts.append(f"Discomfort: {notes}" if notes else "Discomfort: yes")
+            syms = [dn for cn, dn in DYSREG_SYMPTOMS if row.get(cn)]
+            if syms:
+                parts.append(f"Symptoms: {', '.join(syms)}")
         else:
             parts.append("<i>No log</i>")
 
@@ -174,18 +186,21 @@ if not df.empty:
         display_df["log_date"] = display_df["log_date"].dt.strftime("%b %d")
 
     # Rename columns for display
-    rename_map = {"log_date": "Date", "sleep_hrv": "HRV (ms)", "breath_practice": "Breath", "breath_duration_min": "Breath min", "exercise_duration_min": "Exercise min"}
+    rename_map = {"log_date": "Date", "sleep_hrv": "HRV (ms)", "breath_practice": "Breath", "breath_duration_min": "Breath min", "exercise_duration_min": "Exercise min",
+                  "energy_am": "AM Energy", "energy_pm": "PM Energy", "discomfort": "Discomfort"}
     for col, name, _ in SUPPLEMENTS:
         rename_map[col] = name
     for col, name in EXERCISES:
         rename_map[col] = name
+    for col, name in DYSREG_SYMPTOMS:
+        rename_map[col] = name
 
-    cols_to_show = ["log_date", "sleep_hrv"] + EXERCISE_COLUMNS + ["exercise_duration_min", "breath_practice", "breath_duration_min"] + SUPP_COLUMNS
+    cols_to_show = ["log_date", "sleep_hrv", "energy_am", "energy_pm"] + EXERCISE_COLUMNS + ["exercise_duration_min", "breath_practice", "breath_duration_min", "discomfort"] + DYSREG_COLUMNS + SUPP_COLUMNS
     cols_to_show = [c for c in cols_to_show if c in display_df.columns]
     display_df = display_df[cols_to_show].rename(columns=rename_map)
 
     # Convert booleans to checkmarks
-    bool_cols = ["Breath"] + [e[1] for e in EXERCISES if e[1] in display_df.columns] + [s[1] for s in SUPPLEMENTS if s[1] in display_df.columns]
+    bool_cols = ["Breath", "Discomfort"] + [e[1] for e in EXERCISES if e[1] in display_df.columns] + [s[1] for s in SUPPLEMENTS if s[1] in display_df.columns] + [s[1] for s in DYSREG_SYMPTOMS if s[1] in display_df.columns]
     for bc in bool_cols:
         if bc in display_df.columns:
             display_df[bc] = display_df[bc].apply(lambda x: "\u2705" if x else "")
