@@ -1,3 +1,4 @@
+"""Daily log CRUD and column definitions."""
 from datetime import date
 from typing import Optional
 
