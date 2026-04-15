@@ -93,6 +93,8 @@ def get_log(log_date: date) -> Optional[dict]:
                 val = r.get(col, "")
                 if col == "log_date":
                     result[col] = val
+                elif col == "supp_notes":
+                    result[col] = str(val) if val else ""
                 elif col in ("sleep_hrv", "breath_duration_min", "exercise_duration_min"):
                     result[col] = float(val) if val != "" and val is not None else None
                 else:
@@ -145,38 +147,3 @@ def get_all_logs() -> pd.DataFrame:
     return _convert_df(df)
 
 
-# --- Trial supplement tracking ---
-
-TRIAL_SUPPLEMENTS = [s for s in SUPPLEMENTS if s[2] == "trial"]
-TRIAL_MILESTONES = [30, 60, 90]
-
-
-def get_trial_streak(supp_column: str) -> dict:
-    """Count consecutive days a trial supplement was taken, ending at today.
-
-    Returns: {"streak": int, "next_milestone": int or None, "progress_pct": float}
-    """
-    df = get_all_logs()
-    if df.empty or supp_column not in df.columns:
-        return {"streak": 0, "next_milestone": 30, "progress_pct": 0.0}
-
-    df = df.sort_values("log_date", ascending=False)
-    streak = 0
-    today = pd.Timestamp(date.today())
-
-    for _, row in df.iterrows():
-        expected = today - pd.Timedelta(days=streak)
-        if row["log_date"].date() == expected.date() and row.get(supp_column, 0) == 1:
-            streak += 1
-        else:
-            break
-
-    next_ms = None
-    for ms in TRIAL_MILESTONES:
-        if streak < ms:
-            next_ms = ms
-            break
-
-    progress = (streak / next_ms * 100) if next_ms else 100.0
-
-    return {"streak": streak, "next_milestone": next_ms, "progress_pct": progress}

@@ -3,7 +3,6 @@ from datetime import date
 
 from models.daily_log import (
     save_log, get_log, SUPPLEMENTS, EXERCISES,
-    TRIAL_SUPPLEMENTS, get_trial_streak,
 )
 from models.cycle import (
     get_cycle_day, get_cycle_phase, is_period_start,
@@ -73,25 +72,15 @@ with col_opt:
         default = bool(existing.get(col_name, 0)) if existing else False
         supp_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
 
-# Trial supplements with milestone tracking
+# Trial supplements with notes
 if trial:
     st.caption("**Trial**")
     for col_name, display_name, _ in trial:
         default = bool(existing.get(col_name, 0)) if existing else False
         supp_values[col_name] = st.checkbox(display_name, value=default, key=col_name)
 
-        # Show streak progress
-        streak = get_trial_streak(col_name)
-        if streak["streak"] > 0 or supp_values[col_name]:
-            days = streak["streak"]
-            next_ms = streak["next_milestone"]
-            if next_ms:
-                st.progress(
-                    streak["progress_pct"] / 100,
-                    text=f"{days} day streak — next milestone: {next_ms} days",
-                )
-            else:
-                st.success(f"{days} day streak — all milestones reached!")
+notes_default = str(existing.get("supp_notes", "")) if existing else ""
+supp_notes = st.text_input("Supplement notes", value=notes_default, placeholder="e.g. Tru Niagen day 14, feeling more energy")
 
 st.divider()
 
@@ -149,6 +138,7 @@ if st.button("Save", type="primary", use_container_width=True):
     # Build data dict
     data = {
         **supp_values,
+        "supp_notes": supp_notes if supp_notes else None,
         "sleep_hrv": sleep_hrv if sleep_hrv > 0 else None,
         **exercise_values,
         "exercise_duration_min": exercise_dur if any_exercise else None,
