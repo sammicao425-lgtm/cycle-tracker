@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from models.cycle import get_phase_for_dates, PHASE_COLORS, PHASE_ORDER
+from models.cycle import PHASE_COLORS
 from models.moon import get_key_moon_dates
 from models.daily_log import SUPP_COLUMNS, SUPPLEMENTS, EXERCISES, EXERCISE_COLUMNS
 
@@ -26,29 +26,6 @@ def build_timeline_chart(
         row_heights=[0.7, 0.15, 0.15],
         subplot_titles=("Sleep HRV", "Breath", "Exercise"),
     )
-
-    # --- Cycle phase background bands (all rows) ---
-    phase_dates = get_phase_for_dates(start_date, end_date)
-    if phase_dates:
-        current_phase = phase_dates[0][1]
-        band_start = phase_dates[0][0]
-        for i in range(1, len(phase_dates)):
-            d, phase = phase_dates[i]
-            if phase != current_phase or i == len(phase_dates) - 1:
-                band_end = d if phase != current_phase else d
-                if current_phase and current_phase in PHASE_COLORS:
-                    for row in range(1, 4):
-                        fig.add_vrect(
-                            x0=band_start,
-                            x1=band_end,
-                            fillcolor=PHASE_COLORS[current_phase],
-                            opacity=0.15,
-                            line_width=0,
-                            row=row,
-                            col=1,
-                        )
-                current_phase = phase
-                band_start = d
 
     # --- Moon markers (vertical lines on main chart only) ---
     moon_dates = get_key_moon_dates(start_date, end_date)

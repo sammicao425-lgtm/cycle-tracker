@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from models.daily_log import get_logs_range, SUPPLEMENTS, SUPP_COLUMNS, EXERCISES, EXERCISE_COLUMNS
-from models.cycle import get_cycle_phase, PHASE_COLORS
+from models.cycle import get_cycle_phase
 from components.charts import build_timeline_chart
 
 st.header("Timeline")
@@ -38,16 +38,6 @@ fig = build_timeline_chart(df, start_date, end_date)
 st.plotly_chart(fig, use_container_width=True)
 
 # --- Legend ---
-st.caption("**Cycle phases**")
-phase_cols = st.columns(4)
-for i, (phase, color) in enumerate(PHASE_COLORS.items()):
-    with phase_cols[i]:
-        st.markdown(
-            f'<span style="background:{color};padding:2px 8px;border-radius:4px;'
-            f'font-size:0.85em;color:#333">{phase.title()}</span>',
-            unsafe_allow_html=True,
-        )
-
 exercise_colors = {
     "Zone 2 Run": "#42A5F5",
     "PT Weight Training": "#AB47BC",
