@@ -26,6 +26,7 @@ def build_timeline_chart(
         vertical_spacing=0.03,
         row_heights=[0.55, 0.15, 0.15, 0.15],
         subplot_titles=("Sleep HRV & Energy", "Breath", "Exercise", "Symptoms"),
+        specs=[[{"secondary_y": True}], [{}], [{}], [{}]],
     )
 
     # --- Moon markers (vertical lines on main chart only) ---
@@ -94,10 +95,10 @@ def build_timeline_chart(
                     line=dict(color="#FF8A65", width=1.5, dash="dot"),
                     marker=dict(size=4),
                     hovertemplate="%{x|%b %d}: AM %{y}/5<extra></extra>",
-                    yaxis="y2",
                 ),
                 row=1,
                 col=1,
+                secondary_y=True,
             )
     if "energy_pm" in df.columns:
         pm_data = df[df["energy_pm"] > 0]
@@ -111,10 +112,10 @@ def build_timeline_chart(
                     line=dict(color="#4DB6AC", width=1.5, dash="dot"),
                     marker=dict(size=4),
                     hovertemplate="%{x|%b %d}: PM %{y}/5<extra></extra>",
-                    yaxis="y2",
                 ),
                 row=1,
                 col=1,
+                secondary_y=True,
             )
 
     # --- Row 2: Breath practice — simple colored blocks ---
@@ -204,16 +205,10 @@ def build_timeline_chart(
         hovermode="x unified",
         bargap=0,
     )
-    fig.update_yaxes(title_text="ms", row=1, col=1)
-    # Secondary y-axis for energy (1-5) overlaid on row 1
-    fig.update_layout(
-        yaxis2=dict(
-            title="Energy",
-            overlaying="y",
-            side="right",
-            range=[0.5, 5.5],
-            showgrid=False,
-        ),
+    fig.update_yaxes(title_text="ms", row=1, col=1, secondary_y=False)
+    fig.update_yaxes(
+        title_text="Energy", range=[0.5, 5.5], showgrid=False,
+        row=1, col=1, secondary_y=True,
     )
     fig.update_yaxes(visible=False, fixedrange=True, row=2, col=1)
     fig.update_yaxes(visible=False, fixedrange=True, row=3, col=1)
