@@ -15,6 +15,7 @@ SUPPLEMENTS = [
     ("supp_vitamin_b", "Vitamin B", "optional"),
     ("supp_magnesium", "Magnesium", "optional"),
     ("supp_tru_niagen", "Tru Niagen", "trial"),
+    ("supp_mag_threonate", "Magnesium L-Threonate", "trial"),
     ("supp_creatine", "Creatine", "optional"),
     ("supp_whey_protein", "Whey Protein", "optional"),
 ]

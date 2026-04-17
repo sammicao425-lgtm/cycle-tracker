@@ -10,6 +10,7 @@ DAILY_LOG_HEADERS = [
     "supp_notes",
     "sleep_hrv",
     "exercise_zone2_run", "exercise_pt_weights", "exercise_home_gym", "exercise_duration_min",
+    "supp_mag_threonate",
     "breath_practice", "breath_duration_min",
     "discomfort", "discomfort_notes",
     "energy_am", "energy_pm",
