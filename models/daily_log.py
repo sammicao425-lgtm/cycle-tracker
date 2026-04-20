@@ -54,31 +54,42 @@ def _fetch_all_records() -> list[dict]:
     return ws.get_all_records()
 
 
+@st.cache_data(ttl=600)
+def _fetch_sheet_headers() -> list[str]:
+    """Fetch the actual column order from the sheet header row."""
+    ws = _get_ws()
+    return ws.row_values(1)
+
+
 def _invalidate_cache():
     """Clear cached data after a write."""
     _fetch_all_records.clear()
+    _fetch_sheet_headers.clear()
 
 
 def save_log(log_date: date, data: dict) -> None:
-    """Upsert a daily log entry."""
+    """Upsert a daily log entry.
+
+    Always builds the row using the ACTUAL sheet column order,
+    not the hardcoded Python definition — prevents misalignment
+    when columns were added/migrated in a different order.
+    """
     ws = _get_ws()
     date_str = log_date.isoformat()
 
-    # Build the row in header order
+    # Use the real header order from the sheet
+    sheet_headers = _fetch_sheet_headers()
+    full_data = {"log_date": date_str, **data}
+
     row = []
-    for col in DAILY_LOG_HEADERS:
-        if col == "log_date":
-            row.append(date_str)
-        elif col in data:
-            val = data[col]
-            if val is None:
-                row.append("")
-            elif isinstance(val, bool):
-                row.append(1 if val else 0)
-            else:
-                row.append(val)
-        else:
+    for col in sheet_headers:
+        val = full_data.get(col, None)
+        if val is None:
             row.append("")
+        elif isinstance(val, bool):
+            row.append(1 if val else 0)
+        else:
+            row.append(val)
 
     # Check if date already exists
     try:
@@ -87,7 +98,7 @@ def save_log(log_date: date, data: dict) -> None:
         cell = None
 
     if cell is not None:
-        ws.update(f"A{cell.row}:{chr(64 + len(DAILY_LOG_HEADERS))}{cell.row}", [row])
+        ws.update(f"A{cell.row}:{chr(64 + len(sheet_headers))}{cell.row}", [row])
     else:
         ws.append_row(row)
 
